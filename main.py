@@ -3,7 +3,8 @@ import os
 import pandas as pd
 from sqlalchemy import create_engine
 import pymysql
-
+import tqdm
+ 
 
 def selectDatabase(cnx):
 	selected_database = ""
@@ -61,15 +62,13 @@ def showTableData(cnx,database,table):
 			print(2*'\n')
 		input("Press Enter to continue...")
 
-def uploadData(cnx,database,data):
+def uploadCsvToTable(database,data):
 	table_name = input("New Table Name: ")
 	password = input("Please input password: ")
 	username = "root"
 	hostname = "127.0.0.1:1"
 	port = 1
 	print(database)
-	cnx.close()
-
 	try:
 		print("Connecting to {user}:{pw}@{host}/{db}...".format(host=hostname, porte=port, user=username, pw=password,db = database))
 		engine = create_engine("mysql+pymysql://{user}:{pw}@{host}/{db}".format(host=hostname, porte=port, user=username, pw=password,db = database))
@@ -81,9 +80,45 @@ def uploadData(cnx,database,data):
 	except Exception as e:
 		print(e)
 		input()
-	
-			
-def csvToTable(cnx,database):
+
+def downloadTabletoCSV(database,table):
+	password = input("Please input password: ")
+	username = "root"
+	hostname = "127.0.0.1:1"
+	port = 1
+	print("Pleses confirm that you are downloading data from {database}:{table}".format(database=database,table=table))
+	print("1) Yes")
+	print("2) No, Cancel")
+	selection = int(input("Selection: "))
+	filename = input("Please type the filename (do not include .csv): ") + '.csv'
+
+	match selection:
+		case 1:
+			try:
+				print("Connecting to {user}:{pw}@{host}/{db}...".format(host=hostname, porte=port, user=username, pw=password,db = database))
+				engine = create_engine("mysql+pymysql://{user}:{pw}@{host}/{db}".format(host=hostname, porte=port, user=username, pw=password,db = database))
+				print("Connected!")
+				print("Attempting download... This may take a while depending on size of table...")
+
+				try:
+					df = pd.read_sql(sql='SELECT * FROM {table}'.format(table=table),con=engine)
+					df.to_csv('csv-depot/{filename}'.format(filename=filename),index=False)
+					print("Success! File saved in: ",'csv-depot/{filename}'.format(filename=filename))
+					input("Press Enter to continue...")
+
+				except Exception as e:
+					print(e)
+					input()
+
+			except Exception as e:
+				print(e)
+				input()	
+
+		case 2:
+			print("Canceling...")
+			input("Press enter to continue....")
+				
+def csvToTable(database):
 	print("Which file would you like to upload?")
 	print("Please make sure your file is in the csv-depot folder.")
 	index = 1
@@ -109,7 +144,7 @@ def csvToTable(cnx,database):
 		selection = int(input("Selection: "))
 		match selection:
 			case 1:
-				uploadData(cnx,database,data)
+				uploadCsvToTable(database,data)
 			case 2:
 				print('Canceling Upload...')
 				input("Press Enter to continue...")
@@ -150,9 +185,11 @@ def main():
 		print("3) Delete Table")
 		print("3) Show Table Data")
 		print("4) Upload CSV (New Table)")
-		print("5) Exit")
+		print("5) Download Table as CSV")
+		print("6) Exit")
 		try:
-			reps = int(input("Choice: "))
+			reps = int(input("Selection: "))
+
 			match reps:
 				case 1:
 					database = selectDatabase(cnx)
@@ -169,14 +206,22 @@ def main():
 						input("Press Enter to continue...")
 					else:
 						showTableData(cnx,database,table)
+
 				case 4:
 					if(database==""):
 						print(5*"!","You need to select a database before uploading data",5*"!")
 						input("Press Enter to continue...")
 					else:
-						csvToTable(cnx,database)
+						uploadCsvToTable(database)
 
 				case 5:
+					if(database=="" or table == ""):
+						print(5*"!","You need to select a database and a table before downloading data",5*"!")
+						input("Press Enter to continue...")
+					else:
+						downloadTabletoCSV(database,table)
+
+				case 6:
 					cnx.close()
 					os.system('clear')
 					print(5*"$","Thank you come again !",5*"$")
@@ -186,7 +231,8 @@ def main():
 					print("That is not an option.")
 					input("Press Enter to continue...")
 
-		except:
+		except Exception as e:
+			print(e)
 			print("Invalid Input, try again")
 			input()
 		
