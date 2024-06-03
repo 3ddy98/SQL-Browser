@@ -4,7 +4,13 @@ import pandas as pd
 from sqlalchemy import create_engine
 import pymysql
 import tqdm
- 
+import json #chose this over pickle for security reasons
+
+
+def printBanner():
+	with open('banner.txt') as file:
+		for lines in file:
+			print(lines)	
 
 def selectDatabase(cnx):
 	selected_database = ""
@@ -17,14 +23,14 @@ def selectDatabase(cnx):
 			print(5*"=","DATABASES",5*"=")
 			index = 1
 			for row in rows:
-				print(index,") ",row)
-				databases.append(row)
+				print(index,") ",row[0])
+				databases.append(row[0])
 				index = index + 1;
 			print(2*'\n')
-		selection = int(input("Selection: "))-1
+		selection = int(input("--> "))-1
 		selected_database = databases[selection]
 		print(selected_database)
-	return selected_database[0]
+	return selected_database
 
 def selectTable(cnx,database):
 	selected_table = ""
@@ -39,13 +45,13 @@ def selectTable(cnx,database):
 			print(5*"=","TABLES IN", database ,5*"=")
 			index = 1
 			for row in rows:
-				print(index,") ",row)
-				tables.append(row)
+				print(index,") ",row[0])
+				tables.append(row[0])
 				index = index + 1;
 			print(2*'\n')
-		selection = int(input("Selection: "))-1
+		selection = int(input("--> "))-1
 		selected_table = tables[selection]
-	return selected_table[0]
+	return selected_table
 
 def showTableData(cnx,database,table):
 	if cnx and cnx.is_connected():
@@ -64,14 +70,10 @@ def showTableData(cnx,database,table):
 
 def uploadCsvToTable(database,data):
 	table_name = input("New Table Name: ")
-	password = input("Please input password: ")
-	username = "root"
-	hostname = "127.0.0.1:1"
-	port = 1
-	print(database)
+
 	try:
-		print("Connecting to {user}:{pw}@{host}/{db}...".format(host=hostname, porte=port, user=username, pw=password,db = database))
-		engine = create_engine("mysql+pymysql://{user}:{pw}@{host}/{db}".format(host=hostname, porte=port, user=username, pw=password,db = database))
+		print("Connecting to {user}:{pw}@{host}/{db}...".format(host=creds["hostname"], porte=creds["port"], user=username, pw=creds["password"],db = database))
+		engine = create_engine("mysql+pymysql://{user}:{pw}@{host}/{db}".format(host=creds["hostname"], porte=creds["port"], user=username, pw=creds["password"],db = database))
 		print("Uploading Data. Please Wait....")
 		data.to_sql(name= table_name,con = engine,if_exists="replace")
 		print("Success!")
@@ -82,21 +84,17 @@ def uploadCsvToTable(database,data):
 		input()
 
 def downloadTabletoCSV(database,table):
-	password = input("Please input password: ")
-	username = "root"
-	hostname = "127.0.0.1:1"
-	port = 1
 	print("Pleses confirm that you are downloading data from {database}:{table}".format(database=database,table=table))
 	print("1) Yes")
 	print("2) No, Cancel")
-	selection = int(input("Selection: "))
+	selection = int(input("--> "))
 	filename = input("Please type the filename (do not include .csv): ") + '.csv'
 
 	match selection:
 		case 1:
 			try:
-				print("Connecting to {user}:{pw}@{host}/{db}...".format(host=hostname, porte=port, user=username, pw=password,db = database))
-				engine = create_engine("mysql+pymysql://{user}:{pw}@{host}/{db}".format(host=hostname, porte=port, user=username, pw=password,db = database))
+				print("Connecting to {user}:{pw}@{host}/{db}...".format(host=creds["hostname"], porte=creds["port"], user=username, pw=creds["password"],db = database))
+				engine = create_engine("mysql+pymysql://{user}:{pw}@{host}/{db}".format(host=creds["hostname"], porte=creds["port"], user=username, pw=creds["password"],db = database))
 				print("Connected!")
 				print("Attempting download... This may take a while depending on size of table...")
 
@@ -129,7 +127,7 @@ def csvToTable(database):
 		files.append(file)
 		index += 1
 	try:
-		selection = int(input("Selection: ")) - 1
+		selection = int(input("--> ")) - 1
 		print("Selected Folder: ",files[selection])
 		csv_dir = csvs_dir+files[selection]
 		print("Loading....")
@@ -141,7 +139,7 @@ def csvToTable(database):
 		print("2) No")
 		
 		selection = 2;
-		selection = int(input("Selection: "))
+		selection = int(input("--> "))
 		match selection:
 			case 1:
 				uploadCsvToTable(database,data)
@@ -159,83 +157,90 @@ def csvToTable(database):
 		print(e)
 		input()
 
-
+def credentialLoader():
+	creds ={};
+	with open("creds.json") as credFile:
+		creds = json.load(credFile)
+	return creds
 
 def main():
 	database = ""
 	table = ""
 	#starting connection to server
+	global creds 
+	creds = credentialLoader()
+	print("Using credentials in creds.json : {creds}".format(creds=creds))
+	input("Press Enter to Connect...")
 	try:
-		passw = input("Password: ")
-		print("Attempting login...")
-	except Error as e:
-		print(e)
-	cnx = mysql.connector.connect(user="root",password=passw,host="127.0.0.1",port="1",database="REALESTATE")
-	print("Connected...")
-	program = True
-	while program == True:
-		os.system('clear')
-		print(5*"=","MENU",5*"=")
-		print(20*"*")
-		print("Selected Database: ",database)
-		print("Selected Table: ",table)
-		print(20*"*")
-		print("1) Select Database")
-		print("2) Select Table")
-		print("3) Delete Table")
-		print("3) Show Table Data")
-		print("4) Upload CSV (New Table)")
-		print("5) Download Table as CSV")
-		print("6) Exit")
-		try:
-			reps = int(input("Selection: "))
+		cnx = mysql.connector.connect(user="root",password=creds["password"],host=creds["hostname"],port=creds["port"])
+		print("Connected...")
+		program = True
+		while program == True:
+			os.system('clear')
+			printBanner();
+			print(5*"=","MENU",5*"=")
+			print(20*"*")
+			print("Selected Database: ",database)
+			print("Selected Table: ",table)
+			print(20*"*")
+			print("1) Select Database")
+			print("2) Select Table")
+			print("3) Delete Table")
+			print("3) Show Table Data")
+			print("4) Upload CSV (New Table)")
+			print("5) Download Table as CSV")
+			print("6) Exit")
+			try:
+				reps = int(input("--> "))
 
-			match reps:
-				case 1:
-					database = selectDatabase(cnx)
-					table = ""
-				case 2:
-					if(database == ""):
-						print(10*"!","You must first select a database...",10*"!")
+				match reps:
+					case 1:
+						database = selectDatabase(cnx)
+						table = ""
+					case 2:
+						if(database == ""):
+							print(10*"!","You must first select a database...",10*"!")
+							input("Press Enter to continue...")
+						else:
+							table = selectTable(cnx,database)
+					case 3:
+						if(database=="" or table == ""):
+							print(5*"!","You need to select a database and a table before viewing data",5*"!")
+							input("Press Enter to continue...")
+						else:
+							showTableData(cnx,database,table)
+
+					case 4:
+						if(database==""):
+							print(5*"!","You need to select a database before uploading data",5*"!")
+							input("Press Enter to continue...")
+						else:
+							uploadCsvToTable(database)
+
+					case 5:
+						if(database=="" or table == ""):
+							print(5*"!","You need to select a database and a table before downloading data",5*"!")
+							input("Press Enter to continue...")
+						else:
+							downloadTabletoCSV(database,table)
+
+					case 6:
+						cnx.close()
+						os.system('clear')
+						printBanner();
+						print("More on this project at : https://github.com/3ddy98/SQL-Browser")
+						program = False;
+
+					case _:
+						print("That is not an option.")
 						input("Press Enter to continue...")
-					else:
-						table = selectTable(cnx,database)
-				case 3:
-					if(database=="" or table == ""):
-						print(5*"!","You need to select a database and a table before viewing data",5*"!")
-						input("Press Enter to continue...")
-					else:
-						showTableData(cnx,database,table)
 
-				case 4:
-					if(database==""):
-						print(5*"!","You need to select a database before uploading data",5*"!")
-						input("Press Enter to continue...")
-					else:
-						uploadCsvToTable(database)
-
-				case 5:
-					if(database=="" or table == ""):
-						print(5*"!","You need to select a database and a table before downloading data",5*"!")
-						input("Press Enter to continue...")
-					else:
-						downloadTabletoCSV(database,table)
-
-				case 6:
-					cnx.close()
-					os.system('clear')
-					print(5*"$","Thank you come again !",5*"$")
-					program = False;
-
-				case _:
-					print("That is not an option.")
-					input("Press Enter to continue...")
-
-		except Exception as e:
-			print(e)
-			print("Invalid Input, try again")
-			input()
-		
+			except Exception as e:
+				print(e)
+				print("An error occured during input...")
+				input()
+	except Exception as e:
+		print("Error during connection: {e}")
 
 
 if __name__ == "__main__":
