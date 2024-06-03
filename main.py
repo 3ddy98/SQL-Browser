@@ -185,11 +185,11 @@ def main():
 			print(20*"*")
 			print("1) Select Database")
 			print("2) Select Table")
-			print("3) Delete Table")
 			print("3) Show Table Data")
-			print("4) Upload CSV (New Table)")
-			print("5) Download Table as CSV")
-			print("6) Exit")
+			print("4) Upload (CSV to Table)")
+			print("5) Download (Table as CSV)")
+			print("6) Delete Table")
+			print("7) Exit")
 			try:
 				reps = int(input("--> "))
 
@@ -225,6 +225,10 @@ def main():
 							downloadTabletoCSV(database,table)
 
 					case 6:
+						print("Functionality coming soon...")
+						input("Press Enter to continue...")
+
+					case 7:
 						cnx.close()
 						os.system('clear')
 						printBanner();
